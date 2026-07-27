@@ -176,9 +176,11 @@ def _find_weekday(title: str) -> re.Match[str] | None:
 
 def _clean_title(title: str, match: re.Match[str]) -> str:
     cleaned = f"{title[: match.start()]} {title[match.end() :]}".strip()
-    cleaned = re.sub(r"\s+([,.;:])", r"\1", cleaned)
+    cleaned = _collapse_spaces(cleaned)
+    for punctuation in ",.;:":
+        cleaned = cleaned.replace(f" {punctuation}", punctuation)
     cleaned = cleaned.strip(" ,.;:-")
-    return _collapse_spaces(cleaned)
+    return cleaned
 
 
 def _collapse_spaces(value: str) -> str:

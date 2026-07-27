@@ -75,3 +75,12 @@ def test_task_date_extraction_cleans_title_before_classification(db_session, mon
     assert q_next_week.due_at == "2026-07-10T12:00:00+00:00"
     assert proximo.title == "revisar endpoint de Project Delta"
     assert proximo.due_at == "2026-07-10T12:00:00+00:00"
+
+
+def test_task_date_extraction_handles_long_whitespace_before_punctuation(db_session, monkeypatch):
+    monkeypatch.setattr("app.services.deadlines.current_app_time", lambda: NOW)
+
+    task = create_task(db_session, TaskCreate(title=f"revisar informe{' ' * 400}, el viernes"))
+
+    assert task.title == "revisar informe"
+    assert task.due_at == "2026-07-10T12:00:00+00:00"
