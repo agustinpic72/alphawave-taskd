@@ -1,0 +1,99 @@
+# AlphaWave TaskD nginx template for VPS private beta.
+#
+# This is not a live config. Copy it manually to /etc/nginx/sites-available/
+# on the VPS after replacing placeholders.
+#
+# Security notes:
+# - HTTPS is mandatory for any public hostname.
+# - Keep FastAPI bound to 127.0.0.1; do not expose port 8711 publicly.
+# - App auth exists, but private beta should still use VPN, Basic Auth,
+#   IP allowlist, or equivalent external access control unless that risk
+#   is explicitly accepted.
+# - Never serve .env, SQLite data, backups, logs, reports, or dotfiles.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name alpha.example.com;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name alpha.example.com;
+
+    root /opt/alphawave-taskd/frontend/dist;
+    index index.html;
+
+    ssl_certificate /etc/letsencrypt/live/alpha.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/alpha.example.com/privkey.pem;
+
+    client_max_body_size 10m;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    # Optional private-beta guard until app auth exists.
+    # auth_basic "AlphaWave private beta";
+    # auth_basic_user_file /etc/nginx/.alphawave-taskd.htpasswd;
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+
+    location ~* ^/(data|logs|reports|backend|scripts|deploy|systemd|services)/ {
+        deny all;
+    }
+
+    location = /openapi.json {
+        # Private beta default: keep API schema behind the same private guard.
+        proxy_pass http://127.0.0.1:8711/openapi.json;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+
+    location /docs {
+        # Alternative: replace with "return 404;" for a stricter public edge.
+        proxy_pass http://127.0.0.1:8711/docs;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+
+    # Keep the trailing slash on both sides. This maps:
+    #   /api/health -> http://127.0.0.1:8711/api/health
+    location /api/ {
+        proxy_pass http://127.0.0.1:8711/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 90s;
+        proxy_send_timeout 90s;
+    }
+
+    location /assets/ {
+        try_files $uri =404;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

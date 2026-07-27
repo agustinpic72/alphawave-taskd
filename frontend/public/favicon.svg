@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AlphaWave TaskD">
+  <defs>
+    <linearGradient id="bg" x1="12" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#18201d"/>
+      <stop offset="1" stop-color="#0f1113"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="14" y1="34" x2="50" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d8b764"/>
+      <stop offset="0.58" stop-color="#83d7ad"/>
+      <stop offset="1" stop-color="#b6f0ce"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="13.5" fill="none" stroke="#38433e" stroke-width="3"/>
+  <path
+    d="M14 39.5c6.4 0 7.5-15 14-15 5.7 0 6.7 15 12.3 15 4.3 0 6.1-7.2 9.7-12.1"
+    fill="none"
+    stroke="url(#wave)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="6"
+  />
+  <path d="M40 39.5l7.2 7.2L55 30" fill="none" stroke="#f0d58b" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+</svg>

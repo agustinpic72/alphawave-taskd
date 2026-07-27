@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220" role="img" aria-labelledby="title desc">
+  <title id="title">AlphaWave TaskD logo</title>
+  <desc id="desc">AlphaWave TaskD wordmark with a wave-check task mark.</desc>
+  <defs>
+    <linearGradient id="markBg" x1="24" y1="20" x2="178" y2="198" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e3029"/>
+      <stop offset="1" stop-color="#0f1113"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="52" y1="118" x2="150" y2="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d8b764"/>
+      <stop offset="0.56" stop-color="#80d5aa"/>
+      <stop offset="1" stop-color="#c9f7dc"/>
+    </linearGradient>
+  </defs>
+  <rect x="18" y="18" width="184" height="184" rx="42" fill="url(#markBg)"/>
+  <rect x="25" y="25" width="170" height="170" rx="35" fill="none" stroke="#35423c" stroke-width="8"/>
+  <path
+    d="M52 129c21 0 25-50 46-50 19 0 22 50 41 50 15 0 21-24 33-40"
+    fill="none"
+    stroke="url(#wave)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="18"
+  />
+  <path d="M139 129l24 24 27-57" fill="none" stroke="#f0d58b" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/>
+  <text x="236" y="100" fill="#f2eee8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="54" font-weight="820" letter-spacing="0">AlphaWave</text>
+  <text x="238" y="154" fill="#91b7a7" font-family="ui-sans-serif, system-ui, sans-serif" font-size="35" font-weight="760" letter-spacing="5">TaskD</text>
+</svg>

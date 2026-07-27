@@ -1,0 +1,18 @@
+[Unit]
+Description=AlphaWave TaskD local assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO_PATH__
+EnvironmentFile=__REPO_PATH__/.env
+Environment=PYTHONPATH=__REPO_PATH__/backend
+Environment=PATH=__SERVICE_PATH__
+ExecStart=__PYTHON_BIN__ -m app.main
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target

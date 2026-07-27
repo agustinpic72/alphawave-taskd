@@ -1,0 +1,31 @@
+[Unit]
+Description=AlphaWave TaskD private beta backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alphawave
+Group=alphawave
+WorkingDirectory=/opt/alphawave-taskd
+EnvironmentFile=/opt/alphawave-taskd/.env
+Environment=PYTHONPATH=/opt/alphawave-taskd/backend
+# The environment file must select private or public mode. The process exits
+# before serving if auth/cookie/dev-endpoint requirements are unsafe.
+ExecStart=/opt/alphawave-taskd/backend/.venv/bin/python -m app.main
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+# Keep backend private. APP_HOST in .env should remain 127.0.0.1.
+# nginx is the only public HTTP entrypoint for Phase 1.
+
+# Conservative hardening for private beta. Review before enabling stricter
+# filesystem protections because SQLite/backups/logs live under the repo.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ReadWritePaths=/opt/alphawave-taskd/data /opt/alphawave-taskd/logs /opt/alphawave-taskd/reports
+
+[Install]
+WantedBy=multi-user.target

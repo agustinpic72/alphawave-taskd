@@ -1,0 +1,133 @@
+name: alphawave-taskd
+
+services:
+  api:
+    image: "alphawave-taskd-api:${ALPHAWAVE_IMAGE_TAG:-local}"
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      ALPHAWAVE_DEPLOYMENT_MODE: "${ALPHAWAVE_DEPLOYMENT_MODE:-local}"
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8711
+      APP_DEV_ENDPOINTS_ENABLED: "false"
+      DATABASE_URL: sqlite:////app/data/alphawave-taskd.sqlite
+      LOG_FILE: /tmp/alphawave-taskd.log
+      ALPHAWAVE_INSTANCE_LOCK_PATH: "${ALPHAWAVE_INSTANCE_LOCK_PATH:-/app/data/alphawave-taskd.runtime.lock}"
+      APP_TIMEZONE: "${APP_TIMEZONE:-UTC}"
+      ALPHAWAVE_AUTH_ENABLED: "${ALPHAWAVE_AUTH_ENABLED:-false}"
+      ALPHAWAVE_AUTH_COOKIE_SECURE: "${ALPHAWAVE_AUTH_COOKIE_SECURE:-false}"
+      ALPHAWAVE_AUTH_COOKIE_NAME: "${ALPHAWAVE_AUTH_COOKIE_NAME:-alphawave_session}"
+      ALPHAWAVE_AUTH_SESSION_TTL_HOURS: "${ALPHAWAVE_AUTH_SESSION_TTL_HOURS:-168}"
+      ALPHAWAVE_SECRET_ENCRYPTION_KEY: "${ALPHAWAVE_SECRET_ENCRYPTION_KEY:-}"
+      REMINDERS_ENABLED: "${REMINDERS_ENABLED:-true}"
+      REMINDERS_POLL_INTERVAL_SECONDS: "${REMINDERS_POLL_INTERVAL_SECONDS:-30}"
+      DAILY_BRIEFING_ENABLED: "${DAILY_BRIEFING_ENABLED:-true}"
+      DAILY_BRIEFING_TIME: "${DAILY_BRIEFING_TIME:-13:00}"
+      DAILY_BRIEFING_LATE_CUTOFF: "${DAILY_BRIEFING_LATE_CUTOFF:-19:00}"
+      DAILY_BRIEFING_TIMEZONE: "${DAILY_BRIEFING_TIMEZONE:-UTC}"
+      DAILY_BRIEFING_SEND_ON_STARTUP: "${DAILY_BRIEFING_SEND_ON_STARTUP:-true}"
+      TELEGRAM_ENABLED: "${TELEGRAM_ENABLED:-false}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_ALLOWED_USER_ID: "${TELEGRAM_ALLOWED_USER_ID:-}"
+      TELEGRAM_POLL_INTERVAL_SECONDS: "${TELEGRAM_POLL_INTERVAL_SECONDS:-3}"
+      TRELLO_ENABLED: "${TRELLO_ENABLED:-false}"
+      TRELLO_API_KEY: "${TRELLO_API_KEY:-}"
+      TRELLO_TOKEN: "${TRELLO_TOKEN:-}"
+      TRELLO_MEMBER_ID: "${TRELLO_MEMBER_ID:-}"
+      TRELLO_BOARD_ALPHA_ID: "${TRELLO_BOARD_ALPHA_ID:-}"
+      TRELLO_BOARD_BETA_ID: "${TRELLO_BOARD_BETA_ID:-}"
+      TRELLO_SYNC_INTERVAL_MINUTES: "${TRELLO_SYNC_INTERVAL_MINUTES:-15}"
+      TRELLO_WRITE_ENABLED: "${TRELLO_WRITE_ENABLED:-false}"
+      TRELLO_CONFIRMATION_TTL_HOURS: "${TRELLO_CONFIRMATION_TTL_HOURS:-24}"
+      BACKUP_ENABLED: "${BACKUP_ENABLED:-true}"
+      BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-30}"
+    expose:
+      - "8711"
+    volumes:
+      - alphawave_data:/app/data
+      - alphawave_backups:/app/data/backups
+    networks:
+      - alphawave_internal
+      - alphawave_gateway
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import sys, urllib.request;
+          sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8711/api/health', timeout=3).status == 200 else 1)
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  web:
+    image: "alphawave-taskd-web:${ALPHAWAVE_IMAGE_TAG:-local}"
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "${ALPHAWAVE_WEB_BIND:-127.0.0.1}:${ALPHAWAVE_WEB_PORT:-8711}:8080"
+    networks:
+      - alphawave_internal
+      - alphawave_gateway
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:8080/healthz
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=16m,mode=0755
+      - /var/run:size=1m,mode=0755
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  alphawave_internal:
+    internal: true
+  alphawave_gateway:
+
+volumes:
+  alphawave_data:
+    name: "${ALPHAWAVE_DATA_VOLUME:-alphawave_data}"
+    external: "${ALPHAWAVE_VOLUMES_EXTERNAL:-false}"
+  alphawave_backups:
+    name: "${ALPHAWAVE_BACKUPS_VOLUME:-alphawave_backups}"
+    external: "${ALPHAWAVE_VOLUMES_EXTERNAL:-false}"

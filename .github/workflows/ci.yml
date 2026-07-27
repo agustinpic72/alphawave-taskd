@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  publication-audit:
+    name: Linux / publication audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run publication audit
+        run: |
+          ./scripts/dev/publication-audit.sh
+          ./scripts/dev/test-publication-audit.sh
+
+  gitleaks:
+    name: Security / Gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  backend:
+    name: Linux / Python 3.12 backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ALPHAWAVE_AUTH_ENABLED: "false"
+      APP_DEV_ENDPOINTS_ENABLED: "false"
+      TELEGRAM_ENABLED: "false"
+      TRELLO_ENABLED: "false"
+      TRELLO_WRITE_ENABLED: "false"
+      LLM_ENABLED: "false"
+      LLM_PROVIDER: "none"
+      DATABASE_URL: "sqlite:///./data/alphawave-taskd-ci.sqlite"
+      PYTHONPATH: ${{ github.workspace }}/backend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install backend
+        run: |
+          python -m venv backend/.venv
+          backend/.venv/bin/python -m pip install --upgrade pip
+          backend/.venv/bin/pip install -e "backend[dev]"
+          backend/.venv/bin/pip check
+      - name: Initialize CI database
+        run: backend/.venv/bin/python -c "from app.core.db import init_db; init_db()"
+      - name: Run tests
+        run: backend/.venv/bin/pytest -q
+
+  frontend-quality:
+    name: Frontend / lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  dependency-audit:
+    name: Security / npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Audit all frontend dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=high
+      - name: Audit production dependency graph
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+  browser-smoke:
+    name: Browser / Playwright smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TELEGRAM_ENABLED: "false"
+      TRELLO_ENABLED: "false"
+      TRELLO_WRITE_ENABLED: "false"
+      LLM_ENABLED: "false"
+      LLM_PROVIDER: "none"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend
+        run: |
+          python -m venv backend/.venv
+          backend/.venv/bin/python -m pip install --upgrade pip
+          backend/.venv/bin/pip install -e "backend[dev]"
+          backend/.venv/bin/pip check
+      - name: Install and build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npx playwright install --with-deps chromium
+      - name: Run isolated browser smoke
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: bundled
+        run: ./scripts/dev/ci-browser-smoke.sh
+
+  docker-build:
+    name: Linux / Compose build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build Docker images
+        run: docker compose build
+
+  docker-runtime-smoke:
+    name: Linux / Docker runtime and persistence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run isolated runtime and persistence smoke
+        env:
+          ALPHAWAVE_DOCKER_SMOKE_PORT: "18080"
+          ALPHAWAVE_DOCKER_SMOKE_ID: "ci-${{ github.run_id }}-${{ github.run_attempt }}"
+        run: ./scripts/dev/docker-smoke.sh
+      - name: Exercise migration and rollback fixtures
+        run: ./scripts/admin/test-runtime-migration.sh
