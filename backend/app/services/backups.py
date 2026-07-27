@@ -276,8 +276,8 @@ def validate_backup(path: Path) -> dict[str, Any]:
             "checksum_valid": checksum_valid,
             "reason": None if valid else reason,
         }
-    except (OSError, EOFError, gzip.BadGzipFile, sqlite3.DatabaseError, ValueError) as exc:
-        return {**failed, "reason": f"No se pudo validar el backup: {exc}"}
+    except (OSError, EOFError, gzip.BadGzipFile, sqlite3.DatabaseError, ValueError):
+        return {**failed, "reason": "No se pudo validar el backup por un error interno."}
     finally:
         if temp_path:
             temp_path.unlink(missing_ok=True)

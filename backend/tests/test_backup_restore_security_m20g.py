@@ -92,6 +92,22 @@ def test_validation_rejects_checksum_tampering_bad_gzip_and_missing_schema(tmp_p
     assert validation["metadata_valid"] is True
 
 
+def test_validation_does_not_expose_internal_exception_details(tmp_path, monkeypatch):
+    _configure_temp_database(tmp_path, monkeypatch)
+    backup = backups.create_backup_result().path
+    assert backup is not None
+    monkeypatch.setattr(
+        backups,
+        "_decompress_backup",
+        lambda *_args: (_ for _ in ()).throw(OSError("private filesystem detail")),
+    )
+
+    validation = backups.validate_backup(backup)
+
+    assert validation["reason"] == "No se pudo validar el backup por un error interno."
+    assert "private filesystem detail" not in validation["reason"]
+
+
 def test_backup_ids_reject_traversal_and_symlinks(tmp_path, monkeypatch):
     _configure_temp_database(tmp_path, monkeypatch)
     backup = backups.create_backup_result().path
